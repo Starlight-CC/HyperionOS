@@ -1,0 +1,61 @@
+-- <@COMPILE> --
+-- Method="minify"
+-- <@COMPILE_END> --
+local fs=({...})[1]
+local function dot_to_slash(name)
+    local parts = {}
+    local start = 1
+    for i = 1, #name do
+        if name:sub(i, i) == "." then
+            table.insert(parts, name:sub(start, i - 1))
+            start = i + 1
+        end
+    end
+    table.insert(parts, name:sub(start))
+    return table.concat(parts, "/")
+end
+
+local function replace_question_mark(path, name_path)
+    local result = {}
+    local replaced = false
+    for i = 1, #path do
+        local ch = path:sub(i, i)
+        if ch == "?" and not replaced then
+            table.insert(result, name_path)
+            replaced = true
+        else
+            table.insert(result, ch)
+        end
+    end
+    return table.concat(result)
+end
+
+local function search_module(name,search_paths)
+    local name_path = dot_to_slash(name)
+
+    for _, path in ipairs(search_paths) do
+        local filename = replace_question_mark(path, name_path)
+        local code=fs.open(filename,"rc")
+        if code then
+            return code, filename
+        end
+    end
+
+    return nil, "module not found: " .. name
+end
+
+return function(search_paths, preload)
+    local config=string.split(search_paths,";")
+    local loaded=preload or {}
+    return function(query)
+        if loaded[query] then return loaded[query] end
+        local code,file=search_module(query,config)
+        local ok,lib=pcall(load(code))
+        if ok then
+            loaded[query]=lib
+            return lib, file
+        else
+            return nil, "ERR in module "..file
+        end
+    end
+end

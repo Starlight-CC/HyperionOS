@@ -1,0 +1,58 @@
+-- <@COMPILE> --
+-- Method="minify"
+-- <@COMPILE_END> --
+-- Copyright (C) 2025 ASTRONAND
+-- Get boot arguments
+local bootArgs=({...})[1]
+local bootDrive=bootArgs.bootDrive
+
+local function func(tble,space)
+    space=space or ""
+    for i,v in pairs(tble) do
+        print(space..tostring(i).." | "..tostring(v))
+        if type(v) == "table" then
+            if i=="_G" then else
+                func(v,space.."   ")
+            end
+        end
+    end
+end
+func(_G)
+-- My favorite function
+local function PANIC(err,lvl)
+    error("[FATAL] "..err)
+end
+
+local function runAsKernel(path, args)
+    local ok,err,extra = pcall(load(bootDrive:open(path):read()), args)
+    if not ok then
+        PANIC(path.." failed to load/execute err:\n"..err)
+    end
+    return err,extra
+end
+
+-- Add libray modifications+
+for _,v in ipairs(bootDrive:list("/sys/kernel/glib")) do
+    runAsKernel("/sys/kernel/glib/"..v)
+end
+local sudoMaster={}
+local user=runAsKernel("sys/kernel/userManager.sys",{masterKey=sudoMaster,bootDrive=bootDrive})
+local fs=runAsKernel("sys/kernel/filesystem.sys",{bootDrive=bootDrive,auth=user})
+
+local makeRequire=runAsKernel("sys/modules/require",fs)
+local packages={filesystem=fs,auth=user}
+local setRequire
+_G.require,setRequire=makeRequire("/lib/?;/lib/?/init;/sys/modules/?;/sys/modules/?/init",packages)
+
+local code=fs.open("sys/kernel/hypervisor.sys","x")
+if not code then
+    PANIC("Hypervisor failed to load")
+end
+local ok,hypervisor=pcall(code,setRequire)
+if not ok then
+    PANIC("Hypervisor failed to execute")
+end
+
+hypervisor.createProcessFromFunc(function()
+    
+end,"Hyprkrnl")

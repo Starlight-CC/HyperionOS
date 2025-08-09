@@ -1,0 +1,5 @@
+-- <@COMPILE> --
+-- Method="hex"
+-- <@COMPILE_END> --
+local fs=require("filesystem")
+local sudo=require("sudo")

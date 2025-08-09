@@ -1,0 +1,141 @@
+-- <@COMPILE> --
+-- Method="minify"
+-- <@COMPILE_END> --
+-- File open modes
+-- M  | H | D
+-- rc | r | Read and close
+-- r  | r | Read
+-- w  | w | Write
+-- o  | w | Overite file
+-- om | m | Overite and modify
+-- rw | m | Read and write
+-- x  | f | get function
+local args=({...})[1]
+local fs={}
+local disks={}
+local mounts={}
+local bootDrive=args.bootDrive
+
+for t, o in component.list() do
+    if t=="disk" then
+        if o.id==bootDrive.id then
+        else disks[o.id]=o end
+    end
+end
+
+local function resolve(path)
+    if string.sub(path,1,1)~="/" then
+        path="/"..path
+    end
+    local drive=bootDrive
+    for i,v in pairs(mounts) do
+        if string.hasPrefix(path,v) then
+            drive=disks[i]
+            path=string.getSuffix(path,v)
+            break
+        end
+    end
+    return drive, path
+end
+
+local function checkPerms(path,mode)
+    
+end
+
+local function getHandle(backing,typ,clear)
+    local ret={
+        close=function()
+            ret=nil
+        end
+    }
+    if typ=="r" then
+        ret.read=function()
+            return backing.read()
+        end
+    elseif typ=="w" then
+        ret.write=function(data)
+            backing.append(data)
+        end
+    elseif typ=="m" then
+        ret.read=function()
+            return backing.read()
+        end
+        ret.write=function(data)
+            backing.append(data)
+        end
+    end
+    if clear then
+        ret.clear=function()
+            backing.write()
+        end
+    end
+    return ret
+end
+
+local function open(path,mode,forcefully)
+    if not forcefully then checkPerms() end
+    local drive, newPath = resolve(path)
+    if drive:directoryExists(newPath) then error("Cannot open directory") end
+    if not drive:fileExists(newPath) then error("File does not exist") end
+    local backing=drive:open(newPath)
+    if mode=="rc" then
+        local file=getHandle(backing,"r")
+        local text=file.read()
+        file.close()
+        print(file)
+        return text
+    elseif mode=="r" then
+        return getHandle(backing,"r")
+    elseif mode=="w" then
+        return getHandle(backing,"w")
+    elseif mode=="o" then
+        local file=getHandle(backing,"w",true)
+        file.clear()
+        file.clear=nil
+        return file
+    elseif mode=="om" then
+        local file=getHandle(backing,"m",true)
+        file.clear()
+        file.clear=nil
+        return file
+    elseif mode=="rw" then
+        return getHandle(backing,"m")
+    elseif mode=="x" then
+        local file=getHandle(backing,"r")
+        local text=file.read()
+        file.close()
+        return load(text)
+    else
+        error("Invailid mode")
+    end
+end
+
+function fs.open(path, mode)
+    return open(path,mode)
+end
+
+function fs.getSudo(key)
+    if args.sudo.isAproved(key) then
+        return {
+            createVirtDisk=function(virtualDiskName,virtualDiskObj)
+                disks[virtualDiskName]=virtualDiskObj
+            end,
+            mount=function(hardwareDir,path)
+                mounts[hardwareDir]=path
+            end,
+            unmount=function(hardwareDir)
+                mounts[hardwareDir]=nil
+            end,
+            eject=function(hardwareDir)
+                disks[hardwareDir]=nil
+            end,
+            open=function(path, mode)
+                return open(path, mode, true)
+            end
+        }
+    else
+        error("sudo request denied")
+    end
+end
+
+return fs

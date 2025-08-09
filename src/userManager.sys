@@ -1,0 +1,28 @@
+-- <@COMPILE> --
+-- Method="minify"
+-- <@COMPILE_END> --
+local args=({...})[1]
+local masterKey=args.masterKey
+local disk=args.bootDrive
+local sudo={}
+local keys={}
+local ok,sha256=pcall(load(disk:open("/lib/crypto/sha256").read()))
+if not ok then
+    error("sha256 failed to load")
+end
+
+local users={}
+local file=disk:open("/etc/passwd").read()
+for _,i in ipairs(string.split(file,"\n")) do
+    for _,v in ipairs(string.split(v,":")) do
+        
+    end
+end
+
+function sudo.isAproved(key)
+    
+end
+
+function sudo.elevatePerms(password)
+    
+end

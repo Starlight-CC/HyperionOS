@@ -5,7 +5,7 @@ _G.component=component
 
 -- Get CFG
 local biosCfg = load("return "..computer.nvram.BCFG)()
---computer.beep(800,0.2)
+computer.beep(800,0.2)
 
 -- Difine functions
 local function copy(tabl)
@@ -127,5 +127,5 @@ for i,v in pairs(biosCfg.bootSeq) do
     end
     ::invalid_boot::
 end
---computer.beep()
+computer.beep(400,0.4)
 print("No boot options available")

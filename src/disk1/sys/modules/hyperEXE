@@ -1,9 +1,0 @@
--- <@COMPILE> --
--- Method="minify"
--- <@COMPILE_END> --
-local ok,err = pcall(load(bootDrive:open("sys/framework/hex/init.lua"):read()))
-if not ok then
-    error("hex failed to load/execute err:\n"..err)
-end
-print("1.1")
-return err

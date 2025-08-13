@@ -1,6 +1,3 @@
--- <@COMPILE> --
--- Method="minify"
--- <@COMPILE_END> --
 function string.hasSuffix(str, suffix)
     return string.sub(str, #suffix+1) == suffix
 end

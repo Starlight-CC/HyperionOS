@@ -1,11 +1,16 @@
---local computer = component.getFirst("computer")
+local computer = component.getFirst("computer")
+local screen=component.getFirst("screen")
 computer.nvram["BCFG"]=[[{["bootSeq"]={["1"]="Hyperion DEV",["2"]="Hyperion"},["bootCfg"]={["Hyperion DEV"]={["drive"]="disk_1",["path"]="/boot/Hyprkrnl.sys",["globals"]={["test"]="Hello"}},["Hyperion"]={["drive"]="disk_2",["path"]="/boot/Hyprkrnl.sys",["globals"]={["test"]="Hello"}}}}]]
 _G._DEVELOPMENT=true
 _G.component=component
 
+print=screen.print
+printInline=screen.printInline
+clear=screen.clear
+readLine=screen.readLine
 -- Get CFG
 local biosCfg = load("return "..computer.nvram.BCFG)()
-computer.beep(800,0.2)
+computer.beep(800,0.2,1)
 
 -- Difine functions
 local function copy(tabl)

@@ -1,6 +1,3 @@
--- <@COMPILE> --
--- Method="minify"
--- <@COMPILE_END> --
 function table.deepcopy(orig, copies)
     copies = copies or {}
 
@@ -20,15 +17,6 @@ function table.deepcopy(orig, copies)
     end
 
     return copy
-end
-
-function table.contains(tabl, query)
-    for i,v in ipairs(tabl) do
-        if v==query then
-            return true
-        end
-    end
-    return false
 end
 
 function table.hasKey(tabl, query)

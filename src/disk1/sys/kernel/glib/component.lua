@@ -1,21 +1,49 @@
-local oldComponent = component
-_G.component={}
-local components={}
-local all={}
-
-for i,v in oldComponent.list() do
-    if not components[i] then
-        components[i]={}
-    end
-    components[i][#components[i]+1]=v
-    all[i][#all[i]+1]=v
-end
-
-function component.list(filter)
-    local componentsLocal = components
-    filter=filter or "all"
-    local filtered
-    return function()
-        
-    end
-end
+--local oldComponent = component
+--_G.component={}
+--local components={}
+--local all={}
+--local blacklisted={}
+--
+--function table.contains(tabl, query)
+--    for i,v in ipairs(tabl) do
+--        if v==query then
+--            return true
+--        end
+--    end
+--    return false
+--end
+--
+--for i,v in oldComponent.list() do
+--    if not components[i] then
+--        components[i]={}
+--    end
+--    components[i][#components[i]+1]={typ=i,obj=v}
+--    all[#all+1]={typ=i,obj=v}
+--end
+--
+--function component.list(filter)
+--    filter=filter or "all"
+--    local filtered
+--    if filter=="all" then
+--        filtered=all
+--    else
+--        filtered=components[filter]
+--    end
+--    local i=0
+--    return function()
+--        while i<#filtered do
+--            i=i+1
+--            if not table.contains(blacklisted, v.typ) then
+--                return v.typ, v.obj
+--            end
+--        end
+--    end
+--end
+--
+--function component.getSudo(key)
+--    if key==masterKey then
+--        return oldComponent
+--    end
+--end
+--
+--

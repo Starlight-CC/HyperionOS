@@ -1,6 +1,3 @@
--- <@COMPILE> --
--- Method="minify"
--- <@COMPILE_END> --
 -- File open modes
 -- M  | H | D
 -- rc | r | Read and close
@@ -15,6 +12,8 @@ local fs={}
 local disks={}
 local mounts={}
 local bootDrive=args.bootDrive
+local auth=args.auth
+local log=args.log
 
 for t, o in component.list() do
     if t=="disk" then
@@ -39,7 +38,7 @@ local function resolve(path)
 end
 
 local function checkPerms(path,mode)
-    
+    return true
 end
 
 local function getHandle(backing,typ,clear)
@@ -111,31 +110,31 @@ local function open(path,mode,forcefully)
 end
 
 function fs.open(path, mode)
-    return open(path,mode)
+    return open(path, mode)
 end
 
-function fs.getSudo(key)
-    if args.sudo.isAproved(key) then
-        return {
-            createVirtDisk=function(virtualDiskName,virtualDiskObj)
-                disks[virtualDiskName]=virtualDiskObj
-            end,
-            mount=function(hardwareDir,path)
-                mounts[hardwareDir]=path
-            end,
-            unmount=function(hardwareDir)
-                mounts[hardwareDir]=nil
-            end,
-            eject=function(hardwareDir)
-                disks[hardwareDir]=nil
-            end,
-            open=function(path, mode)
-                return open(path, mode, true)
-            end
-        }
-    else
-        error("sudo request denied")
-    end
-end
+--function fs.getSudo(key)
+--    if auth.sudo.isAproved(key) then
+--        return {
+--            createVirtDisk=function(virtualDiskName,virtualDiskObj)
+--                disks[virtualDiskName]=virtualDiskObj
+--            end,
+--            mount=function(hardwareDir,path)
+--                mounts[hardwareDir]=path
+--            end,
+--            unmount=function(hardwareDir)
+--                mounts[hardwareDir]=nil
+--            end,
+--            eject=function(hardwareDir)
+--                disks[hardwareDir]=nil
+--            end,
+--            open=function(path, mode)
+--                return open(path, mode, true)
+--            end
+--        }
+--    else
+--        error("sudo request denied")
+--    end
+--end
 
 return fs

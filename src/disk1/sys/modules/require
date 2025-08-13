@@ -1,7 +1,6 @@
--- <@COMPILE> --
--- Method="minify"
--- <@COMPILE_END> --
-local fs=({...})[1]
+local args=({...})[1]
+local log=args.logging
+local fs=args.filesystem
 local function dot_to_slash(name)
     local parts = {}
     local start = 1
@@ -35,9 +34,11 @@ local function search_module(name,search_paths)
 
     for _, path in ipairs(search_paths) do
         local filename = replace_question_mark(path, name_path)
-        local code=fs.open(filename,"rc")
-        if code then
-            return code, filename
+        if fs.exists(filename) and not fs.isDir(filename) then
+            local code=fs.open(filename,"rc")
+            if code then
+                return code, filename
+            end
         end
     end
 
@@ -47,15 +48,18 @@ end
 return function(search_paths, preload)
     local config=string.split(search_paths,";")
     local loaded=preload or {}
+    log.log("Created require.")
     return function(query)
         if loaded[query] then return loaded[query] end
         local code,file=search_module(query,config)
         local ok,lib=pcall(load(code))
         if ok then
+            log.log("Added: \""..query.."\" to require registry.")
             loaded[query]=lib
             return lib, file
         else
-            return nil, "ERR in module "..file
+            log.warn("ERR in module "..file)
+            return nil, "ERR in module "..file.."."
         end
     end
 end

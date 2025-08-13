@@ -1,10 +1,8 @@
--- <@COMPILE> --
--- Method="minify"
--- <@COMPILE_END> --
 local args=({...})[1]
 local masterKey=args.masterKey
 local disk=args.bootDrive
-local sudo={}
+local auth={}
+auth.sudo={}
 local keys={}
 local ok,sha256=pcall(load(disk:open("/lib/crypto/sha256").read()))
 if not ok then
@@ -13,17 +11,18 @@ end
 
 local users={}
 local file=disk:open("/etc/passwd").read()
-for _,i in ipairs(string.split(file,"\n")) do
-    for _,v in ipairs(string.split(v,":")) do
-        
-    end
+-- for p,i in ipairs(string.split(file,"\n")) do
+--     for t,v in ipairs(string.split(v,":")) do
+--         users[p][t]=v
+--     end
+-- end
+
+function auth.sudo.isAproved(key)
+    return true
 end
 
-function sudo.isAproved(key)
+function auth.sudo.elevatePerms(password)
     
 end
 
-function sudo.elevatePerms(password)
-    
-end
-
+return auth

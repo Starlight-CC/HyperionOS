@@ -62,7 +62,7 @@ log.log("Initailized filesystem")
 
 local makeRequire=runAsKernel("sys/modules/require",{filesystem=fs,logging=log})
 log.log("Loaded require")
-local packages={filesystem=fs,auth=auth, logging=log}
+local packages={filesystem=fs, auth=auth, logging=log, require=makeRequire}
 local setRequire
 _G.require,setRequire=makeRequire("/lib/?;/lib/?/init;/sys/modules/?;/sys/modules/?/init",packages)
 log.log("Initailized require")

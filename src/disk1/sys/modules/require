@@ -1,6 +1,7 @@
 local args=({...})[1]
 local log=args.logging
 local fs=args.filesystem
+local loaded=args.preload or {}
 local function dot_to_slash(name)
     local parts = {}
     local start = 1
@@ -45,21 +46,37 @@ local function search_module(name,search_paths)
     return nil, "module not found: " .. name
 end
 
-return function(search_paths, preload)
-    local config=string.split(search_paths,";")
-    local loaded=preload or {}
-    log.log("Created require.")
-    return function(query)
-        if loaded[query] then return loaded[query] end
-        local code,file=search_module(query,config)
-        local ok,lib=pcall(load(code))
-        if ok then
-            log.log("Added: \""..query.."\" to require registry.")
-            loaded[query]=lib
-            return lib, file
-        else
-            log.warn("ERR in module "..file)
-            return nil, "ERR in module "..file.."."
+return {
+    makeRequire=function(search_paths, preload)
+        local config=string.split(search_paths,";")
+        return {
+            require=function(query)
+                if loaded[query] then return loaded[query] end
+                local code,file=search_module(query,config)
+                local ok,lib=pcall(load(code))
+                if ok then
+                    log.log("Added: \""..query.."\" to require registry.")
+                    loaded[query]=lib
+                    return lib, file
+                else
+                    log.warn("ERR in module "..file)
+                    return nil, "ERR in module "..file.."."
+                end
+            end,
+            load=function(query, lib)
+                loaded[query]=lib
+            end
+        }
+    end,
+    list=function()
+        local list={}
+        for i,v in pairs(loaded) do
+            list[#list+1]={i=i,v=v}
+        end
+        local i=0
+        while i<#list do
+            i=i+1
+            return list[i].i, list[i].v
         end
     end
-end
+}

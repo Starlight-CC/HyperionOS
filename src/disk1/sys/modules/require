@@ -47,16 +47,17 @@ local function search_module(name,search_paths)
 end
 
 return {
-    makeRequire=function(search_paths, preload)
+    makeRequire=function(search_paths)
         local config=string.split(search_paths,";")
+        local locLoaded=loaded
         return {
             require=function(query)
-                if loaded[query] then return loaded[query] end
+                if locLoaded[query] then return locLoaded[query] end
                 local code,file=search_module(query,config)
                 local ok,lib=pcall(load(code))
                 if ok then
                     log.log("Added: \""..query.."\" to require registry.")
-                    loaded[query]=lib
+                    locLoaded[query]=lib
                     return lib, file
                 else
                     log.warn("ERR in module "..file)
@@ -64,7 +65,7 @@ return {
                 end
             end,
             load=function(query, lib)
-                loaded[query]=lib
+                locLoaded[query]=lib
             end
         }
     end,

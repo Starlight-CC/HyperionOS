@@ -1,9 +1,20 @@
+--[[local function rand()
+    if math.random(0)==0 then return true else return false end
+end
+function coroutine.resumeWithTimeout(CORO, TIME, ...)
+    return rand(), coroutine.resume(CORO, ...)
+end
+]]
 -- Copyright (C) 2025 ASTRONAND
 -- Get boot arguments
 local bootArgs=({...})[1]
 local bootDrive=bootArgs.bootDrive
 local LOG_TEXT=""
 local log={}
+local term=component.getFirst("screen")
+local computer=component.getFirst("computer")
+local errorData=load("return "..bootDrive:open("var/log/kernel/errorData").read())()
+term.clear()
 
 local function getPName()
     return "Hyprkrnl"
@@ -20,24 +31,66 @@ function log.warn(text)
     LOG_TEXT=LOG_TEXT.."[WARN] "..getPName()..": "..text.."\n"
 end
 
-local function func(tble,space)
-    space=space or ""
-    for i,v in pairs(tble) do
-        print(space..tostring(i).." | "..tostring(v))
+local function t2t(table)
+    local output = "{"
+    for i,v in pairs(table) do
+        local coma=true
+        if type(i) == "string" then
+            output=output.."[\""..i.."\"]="
+        end
         if type(v) == "table" then
-            if i=="_G" then else
-                func(v,space.."   ")
+            if v == table then
+                output=string.sub(output,1,#output-(#i+1))
+                coma=false
+            else
+                output=output..t2t(v)
             end
+        elseif type(v) == "string" then
+            output=output.."\""..v.."\""
+        elseif type(v) == "number" then
+            output=output..tostring(v)
+        elseif type(v) == "function" then
+            output=string.sub(output,1,#output-(#i+1))
+            coma=false
+        end
+        if coma then
+            output=output..","
         end
     end
+    if #table>0 or string.sub(output,#output,#output) == "," then
+        output=string.sub(output,1,#output-1)
+    end
+    output=output.."}"
+    return output
 end
 
 -- My favorite function
 local function PANIC(err,lvl)
-    clear()
-    print(LOG_TEXT)
-    printInline("KERNEL PANIC: "..err)
-    while true do sleep(1) end
+    term.clear()
+    term.print(LOG_TEXT)
+    term.printInline("KERNEL PANIC: "..err)
+    computer.beep(800,0.2,1)
+    sleep(0.02)
+    computer.beep(800,0.2,1)
+    sleep(0.02)
+    computer.beep(800,0.2,1)
+    if err==errorData.prevError then
+        errorData.errorCount=errorData.errorCount+1
+    else
+        errorData.prevError=err
+        errorData.errorCount=0
+    end
+    bootDrive:open("var/log/kernel/errorData").write(t2t(errorData))
+    if errorData.errorCount < 4 then
+        term.print("")
+        term.print("Atempting reboot...")
+        computer.reboot()
+    elseif errorData.errorCount <= 4 then
+        term.print("")
+        term.print("boot determined to be unrecoverable...")
+        sleep(0.5)
+        computer.shutdown()
+    end
 end
 
 local function runAsKernel(path, args)
@@ -59,22 +112,24 @@ local auth=runAsKernel("sys/kernel/userManager.sys",{masterKey=sudoMaster,bootDr
 log.log("Created UE Manager")
 local fs=runAsKernel("sys/kernel/filesystem.sys",{bootDrive=bootDrive,auth=auth})
 log.log("Initailized filesystem")
-
-local makeRequire=runAsKernel("sys/modules/require",{filesystem=fs,logging=log})
+local packages={filesystem=fs, auth=auth, logging=log, term=term}
+local req=runAsKernel("sys/modules/require",{filesystem=fs,logging=log, preload=packages})
 log.log("Loaded require")
-local packages={filesystem=fs, auth=auth, logging=log, require=makeRequire}
 local setRequire
-_G.require,setRequire=makeRequire("/lib/?;/lib/?/init;/sys/modules/?;/sys/modules/?/init",packages)
+_G.require,setRequire=req.makeRequire("/lib/?;/lib/?/init;/sys/modules/?;/sys/modules/?/init",packages)
+--setRequire("require",req)
 log.log("Initailized require")
 
 local code=fs.open("sys/kernel/hypervisor.sys","x")
 
 if not code then
     PANIC("Hypervisor failed to load")
+    goto KERNEL_EXIT
 end
-local ok,hypervisor=pcall(code,setRequire)
+local ok,hypervisor=pcall(code,sudoMaster,setRequire)
 if not ok then
     PANIC("Hypervisor failed to execute")
+    goto KERNEL_EXIT
 end
 log.log("Loaded hypervisor")
 
@@ -84,3 +139,4 @@ hypervisor.createProcessFromFunc(function()
 end,"Hyprkrnl")]]
 
 PANIC("FORCE_KERNEL_PANIC")
+::KERNEL_EXIT::

@@ -1,1 +1,2 @@
-sudo:0:root
+root:0:root
+sudo:1:root

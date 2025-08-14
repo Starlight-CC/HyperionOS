@@ -1,3 +1,22 @@
 local fs=require("filesystem")
 local auth=require("auth")
+local hypervisor={}
+local processes={}
+
+
+--Process struct
+return {}
+
+
+
+
+
+
+
+
+
+
+
+
+
 

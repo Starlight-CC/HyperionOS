@@ -37,7 +37,7 @@ local function resolve(path)
     return drive, path
 end
 
-local function checkPerms(path,mode)
+local function checkPerms(path, mode)
     return true
 end
 
@@ -72,7 +72,7 @@ local function getHandle(backing,typ,clear)
 end
 
 local function open(path,mode,forcefully)
-    if not forcefully then checkPerms() end
+    if not forcefully then checkPerms(path, mode) end
     local drive, newPath = resolve(path)
     if drive:directoryExists(newPath) then error("Cannot open directory") end
     if not drive:fileExists(newPath) then error("File does not exist") end
@@ -113,28 +113,86 @@ function fs.open(path, mode)
     return open(path, mode)
 end
 
---function fs.getSudo(key)
---    if auth.sudo.isAproved(key) then
---        return {
---            createVirtDisk=function(virtualDiskName,virtualDiskObj)
---                disks[virtualDiskName]=virtualDiskObj
---            end,
---            mount=function(hardwareDir,path)
---                mounts[hardwareDir]=path
---            end,
---            unmount=function(hardwareDir)
---                mounts[hardwareDir]=nil
---            end,
---            eject=function(hardwareDir)
---                disks[hardwareDir]=nil
---            end,
---            open=function(path, mode)
---                return open(path, mode, true)
---            end
---        }
---    else
---        error("sudo request denied")
---    end
---end
+local function exists(path, forcefully)
+    if not forcefully then checkPerms(path, "r") end
+    local drive, newPath = resolve(path)
+    return drive:fileExists(newPath) or drive:directoryExists(newPath)
+end
+
+local function isDir(path, forcefully)
+    if not forcefully then checkPerms(path, "r") end
+    local drive, newPath = resolve(path)
+    return drive:directoryExists(newPath)
+end
+
+local function delete(path, forcefully)
+    if not forcefully then checkPerms(path, "w") end
+    local drive, newPath = resolve(path)
+    return drive:delete(newPath)
+end
+
+function fs.copy(orig, dest)
+    local destFile = fs.open(dest,"o")
+    local origFile = fs.open(orig, "rc")
+    destFile.write(origFile)
+    destFile.close()
+end
+
+function fs.move(orig, dest)
+    local destFile = fs.open(dest,"o")
+    local origFile = fs.open(orig, "rc")
+    destFile.write(origFile)
+    destFile.close()
+    fs.delete(orig)
+end
+
+function fs.isDir(path)
+    isDir(path)
+end
+
+function fs.exists(path)
+    exists(path)
+end
+
+function fs.delete(path)
+    delete(path)
+end
+
+function fs.getSudo(key)
+    if auth.sudo.isAproved(key) then
+        return {
+            createVirtDisk=function(virtualDiskName,virtualDiskObj)
+                disks[virtualDiskName]=virtualDiskObj
+            end,
+            mount=function(hardwareDir,path)
+                mounts[hardwareDir]=path
+            end,
+            unmount=function(hardwareDir)
+                mounts[hardwareDir]=nil
+            end,
+            eject=function(hardwareDir)
+                disks[hardwareDir]=nil
+            end,
+            sfs={
+                open=function(path, mode)
+                    return open(path, mode, true)
+                end,
+                delete=function(path)
+                    delete(path, true)
+                end,
+                copy=fs.copy,
+                move=fs.move,
+                exists=function(path)
+                    exists(path, true)
+                end,
+                isDir=function(path)
+                    isDir(path, true)
+                end
+            }
+        }
+    else
+        error("sudo request denied")
+    end
+end
 
 return fs

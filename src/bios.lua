@@ -4,10 +4,12 @@ computer.nvram["BCFG"]=[[{["bootSeq"]={["1"]="Hyperion DEV",["2"]="Hyperion"},["
 _G._DEVELOPMENT=true
 _G.component=component
 
-print=screen.print
-printInline=screen.printInline
-clear=screen.clear
-readLine=screen.readLine
+local printed=""
+local print=function(text)
+    printed=printed..text.."\n"
+    screen.print(text)
+end
+
 -- Get CFG
 local biosCfg = load("return "..computer.nvram.BCFG)()
 computer.beep(800,0.2,1)
@@ -120,7 +122,11 @@ for i,v in pairs(biosCfg.bootSeq) do
     end
     local bootArgs=biosCfg.bootCfg[v].bootArgs or {}
     bootArgs.bootDrive=drive
+    bootArgs.term=screen
+    screen.clear()
     local ok, err = pcall(func, bootArgs)
+    screen.clear()
+    screen.print(printed)
     if not ok then
         print("└─ Kernel exited with error \""..err.."\".")
         print(" ")

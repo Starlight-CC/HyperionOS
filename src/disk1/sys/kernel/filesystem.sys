@@ -13,7 +13,7 @@ local disks={}
 local mounts={}
 local bootDrive=args.bootDrive
 local auth=args.auth
-local log=args.log
+local e=component.getFirst("screen").print
 
 for t, o in component.list() do
     if t=="disk" then
@@ -38,7 +38,7 @@ local function resolve(path)
 end
 
 local function checkPerms(path, mode)
-    return true
+
 end
 
 local function getHandle(backing,typ,clear)
@@ -71,8 +71,10 @@ local function getHandle(backing,typ,clear)
     return ret
 end
 
-local function open(path,mode,forcefully)
-    if not forcefully then checkPerms(path, mode) end
+local function open(path,mode,pc)
+    if pc then
+        checkPerms(path, mode)
+    end
     local drive, newPath = resolve(path)
     if drive:directoryExists(newPath) then error("Cannot open directory") end
     if not drive:fileExists(newPath) then error("File does not exist") end
@@ -110,26 +112,36 @@ local function open(path,mode,forcefully)
 end
 
 function fs.open(path, mode)
-    return open(path, mode)
+    return open(path, mode, true)
 end
 
-local function exists(path, forcefully)
-    if not forcefully then checkPerms(path, "r") end
+--[[
+local function exists(path, pc)
+    if pc then
+        checkPerms(path, "r")
+    end
     local drive, newPath = resolve(path)
-    return drive:fileExists(newPath) or drive:directoryExists(newPath)
+    return (drive:fileExists(newPath)) or (drive:directoryExists(newPath))
 end
+e("E")
 
-local function isDir(path, forcefully)
-    if not forcefully then checkPerms(path, "r") end
+local function isDir(path, pc)
+    if pc then
+        checkPerms(path, "r")
+    end
     local drive, newPath = resolve(path)
     return drive:directoryExists(newPath)
 end
+e("E")
 
-local function delete(path, forcefully)
-    if not forcefully then checkPerms(path, "w") end
+local function delete(path, pc)
+    if pc then
+        checkPerms(path, "w")
+    end
     local drive, newPath = resolve(path)
     return drive:delete(newPath)
 end
+e("E")
 
 function fs.copy(orig, dest)
     local destFile = fs.open(dest,"o")
@@ -137,6 +149,7 @@ function fs.copy(orig, dest)
     destFile.write(origFile)
     destFile.close()
 end
+e("E")
 
 function fs.move(orig, dest)
     local destFile = fs.open(dest,"o")
@@ -145,18 +158,22 @@ function fs.move(orig, dest)
     destFile.close()
     fs.delete(orig)
 end
+e("E")
 
 function fs.isDir(path)
-    isDir(path)
+    isDir(path, true)
 end
+e("E")
 
 function fs.exists(path)
-    exists(path)
+    exists(path, true)
 end
+e("E")
 
 function fs.delete(path)
-    delete(path)
+    delete(path, true)
 end
+e("E")
 
 function fs.getSudo(key)
     if auth.sudo.isAproved(key) then
@@ -175,18 +192,18 @@ function fs.getSudo(key)
             end,
             sfs={
                 open=function(path, mode)
-                    return open(path, mode, true)
+                    return open(path, mode)
                 end,
                 delete=function(path)
-                    delete(path, true)
+                    delete(path)
                 end,
                 copy=fs.copy,
                 move=fs.move,
                 exists=function(path)
-                    exists(path, true)
+                    exists(path)
                 end,
                 isDir=function(path)
-                    isDir(path, true)
+                    isDir(path)
                 end
             }
         }
@@ -194,5 +211,6 @@ function fs.getSudo(key)
         error("sudo request denied")
     end
 end
-
+e("E")
+]]
 return fs

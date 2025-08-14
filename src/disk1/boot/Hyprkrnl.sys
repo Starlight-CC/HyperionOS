@@ -84,6 +84,7 @@ local function PANIC(err,lvl)
     if errorData.errorCount < 4 then
         term.print("")
         term.print("Atempting reboot...")
+        sleep(0.5)
         computer.reboot()
     elseif errorData.errorCount <= 4 then
         term.print("")
@@ -124,12 +125,10 @@ local code=fs.open("sys/kernel/hypervisor.sys","x")
 
 if not code then
     PANIC("Hypervisor failed to load")
-    goto KERNEL_EXIT
 end
 local ok,hypervisor=pcall(code,sudoMaster,setRequire)
 if not ok then
     PANIC("Hypervisor failed to execute")
-    goto KERNEL_EXIT
 end
 log.log("Loaded hypervisor")
 
@@ -139,4 +138,3 @@ hypervisor.createProcessFromFunc(function()
 end,"Hyprkrnl")]]
 
 PANIC("FORCE_KERNEL_PANIC")
-::KERNEL_EXIT::

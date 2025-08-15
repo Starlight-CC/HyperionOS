@@ -1,0 +1,57 @@
+<!DOCTYPE ="html">
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+
+    <title>Starlight VM</title>
+    <link rel="stylesheet" href="https://copy-cat.squiddev.cc/main.css" />
+    <style>
+      .container {
+        width: 80%;
+        margin: 20px auto;
+      }
+      .embed-computer {
+        margin: 20px 0px;
+        height: 420px;
+      }
+    </style>
+  </head>
+  <body>
+    <div class="container">
+      <div id="computer-1" class="embed-computer"></div>
+    </div>
+
+    <script type="text/javascript" src="https://copy-cat.squiddev.cc/require.js"></script>
+    <script>
+      require.config({ paths: { copycat: "https://copy-cat.squiddev.cc/" } });
+      require(["copycat/embed"], setup => {
+        // More complete example.
+        const computer = setup(document.getElementById("computer-1"), {
+          // Specify a computer id to persist files. This does not determine the computer ID - that is always 0.
+          persistId: 0,
+
+          // Either true/false, or a path to a custom font file.
+          hdFont: true,
+
+          // A map of files to their contents. The values may be ArrayBuffers,
+          // ArrayBuffer views (such as UInt8Array) or plain strings.
+          files: {
+            "startup.lua": "shell.run('wget https://raw.githubusercontent.com/Starlight-CC/starlight-os/refs/heads/main/docs/Demo') shell.run('Demo')"
+          },
+
+          // Specify the terminals's dimensions.
+          width: 64,
+          height: 32,
+
+          // Provide a custom label
+          label: "Starlight VM",
+
+          // Specify peripherals, as a map of side (front, back, left, right, top, bottom) to peripheral
+          // type. Currently only "speaker" is supported.
+          peripherals: {back: "speaker"},
+        });
+      });
+    </script>
+  </body>
+</html>

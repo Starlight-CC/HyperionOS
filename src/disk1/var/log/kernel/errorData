@@ -1,1 +1,2 @@
-{["errorCount"]=4,["prevError"]="Hypervisor failed to execute"}
+{["errorCount"]=5,["prevError"]=[=[Hypervisor failed to execute ERR:
+Trying to call a nil value]=]}

@@ -7,13 +7,13 @@
 -- om | m | Overite and modify
 -- rw | m | Read and write
 -- x  | f | get function
+
 local args=({...})[1]
 local fs={}
 local disks={}
 local mounts={}
 local bootDrive=args.bootDrive
 local auth=args.auth
-local e=component.getFirst("screen").print
 
 for t, o in component.list() do
     if t=="disk" then
@@ -42,11 +42,10 @@ local function checkPerms(path, mode)
 end
 
 local function getHandle(backing,typ,clear)
-    local ret={
-        close=function()
-            ret=nil
-        end
-    }
+    local ret={}
+    ret.close=function()
+        ret=nil
+    end
     if typ=="r" then
         ret.read=function()
             return backing.read()
@@ -115,41 +114,12 @@ function fs.open(path, mode)
     return open(path, mode, true)
 end
 
---[[
-local function exists(path, pc)
-    if pc then
-        checkPerms(path, "r")
-    end
-    local drive, newPath = resolve(path)
-    return (drive:fileExists(newPath)) or (drive:directoryExists(newPath))
-end
-e("E")
-
-local function isDir(path, pc)
-    if pc then
-        checkPerms(path, "r")
-    end
-    local drive, newPath = resolve(path)
-    return drive:directoryExists(newPath)
-end
-e("E")
-
-local function delete(path, pc)
-    if pc then
-        checkPerms(path, "w")
-    end
-    local drive, newPath = resolve(path)
-    return drive:delete(newPath)
-end
-e("E")
-
 function fs.copy(orig, dest)
     local destFile = fs.open(dest,"o")
     local origFile = fs.open(orig, "rc")
     destFile.write(origFile)
     destFile.close()
 end
-e("E")
 
 function fs.move(orig, dest)
     local destFile = fs.open(dest,"o")
@@ -158,22 +128,37 @@ function fs.move(orig, dest)
     destFile.close()
     fs.delete(orig)
 end
-e("E")
+
+-- This fixes the weirdest bug ever
+local isDir = function(path, pc)
+    if pc then checkPerms(path, "r") end
+    local drive, newPath = resolve(path)
+    return drive:directoryExists(newPath)
+end
+
+local exists = function(path, pc)
+    if pc then checkPerms(path, "r") end
+    local drive, newPath = resolve(path)
+    return (drive:directoryExists(newPath)) or (drive:fileExists(newPath))
+end
+
+local delete = function(path, pc)
+    if pc then checkPerms(path, "w") end
+    local drive, newPath = resolve(path)
+    return drive:delete(newPath)
+end
 
 function fs.isDir(path)
     isDir(path, true)
 end
-e("E")
 
 function fs.exists(path)
     exists(path, true)
 end
-e("E")
 
 function fs.delete(path)
     delete(path, true)
 end
-e("E")
 
 function fs.getSudo(key)
     if auth.sudo.isAproved(key) then
@@ -211,6 +196,5 @@ function fs.getSudo(key)
         error("sudo request denied")
     end
 end
-e("E")
-]]
+
 return fs

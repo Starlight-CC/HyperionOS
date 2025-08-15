@@ -18,10 +18,10 @@
 # You can create any custom variable you would like, and they will be accessible
 # in the templates via {{ site.myvariable }}.
 
-title: Starlight-OS
+title: Hyperion-OS
 email: astronandyt@gmail.co
 description: >-
-  A operating system based on unix/linux for CC:Tweaked
+  A operating system based on unix/linux for [REDACTED]
 baseurl: "" # the subpath of your site, e.g. /blog
 url: "" # the base hostname & protocol for your site, e.g. http://example.com
 github-username: "Starlight-CC"

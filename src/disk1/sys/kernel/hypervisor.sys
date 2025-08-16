@@ -1,6 +1,6 @@
 local args=({...})[1]
 local fs=require("filesystem")
-local sfs=fs.getSudo(args.masterKey)
+--local sfs=fs.getSudo(args.masterKey)
 local auth=require("auth")
 local hypervisor={}
 local processes={}

@@ -130,7 +130,7 @@ function fs.move(orig, dest)
 end
 
 -- This fixes the weirdest bug ever
-local isDir = function(path, pc)
+local function isDir(path, pc)
     if pc then checkPerms(path, "r") end
     local drive, newPath = resolve(path)
     return drive:directoryExists(newPath)

@@ -1,5 +1,5 @@
 title: HyperionOS
-description: Bookmark
+description: Home of the Hyperion-OS docs
 plugins:
   - jekyll-remote-theme
 remote_theme: just-the-docs/just-the-docs

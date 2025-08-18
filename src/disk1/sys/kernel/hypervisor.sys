@@ -7,24 +7,46 @@ local thread={}
 local processes={}
 local events={}
 local UUID_VAL=-1
+local time=0
 local function UUID()
     UUID_VAL=UUID_VAL+1
     return UUID_VAL
 end
 -- Stuff related to current process
-local currentPCB={}
-local currentThread=coroutine.create(function() end)
+local currentPCB={
+    exe="/boot/Hyprkrnl.sys"
+}
 
-function hypervisor.triggerEvent(event, ...)
+local currentThread={}
+
+function hypervisor.triggerEvent(target, event, ...)
     local args={...}
-    if events[event] then
-        for i,v in pairs(events[event]) do
-            if processes[v.parent] then
-                processes[v.parent].threads["EVH_"..i]=coroutine.create(function()
-                    pcall(v.func, event, table.unpack(args))
-                end)
-            else
-                events[event][i]=nil
+    if events[target] then
+        if events[target][event] then
+            for i,v in pairs(events[target][event]) do
+                if processes[v.parent] then
+                    processes[v.parent].threads["EVH_"..i]=coroutine.create(function()
+                        pcall(v.func, event, table.unpack(args))
+                    end)
+                else
+                    events[target][event][i]=nil
+                end
+            end
+        end
+    else
+        if target=="all" then
+            for _, t in pairs(events) do
+                if t[event] then
+                    for i,v in pairs(events[target][event]) do
+                        if processes[v.parent] then
+                            processes[v.parent].threads["EVH_"..i]=coroutine.create(function()
+                                pcall(v.func, event, table.unpack(args))
+                            end)
+                        else
+                            events[target][event][i]=nil
+                        end
+                    end
+                end
             end
         end
     end
@@ -33,38 +55,81 @@ end
 function thread.create(func, name, ...)
     local args={...}
     local parent=currentPCB.UUID
-    local threadReturn
 
     if currentPCB.threads[name] then error("thread "..name.." already exists") end
+    local ret = {}
     currentPCB.threads[name]={
         thread=coroutine.create(function()
             local ok, err = pcall(func, table.unpack(args))
             if not ok then
-                hypervisor.triggerEvent("threadError", parent, name, err)
+                ret=nil
+                hypervisor.triggerEvent(parent, "threadError", name, err)
             else
-                hypervisor.triggerEvent("threadReturn", parent, name, err)
+                ret=nil
+                hypervisor.triggerEvent(parent, "threadReturn", name, err)
             end
         end),
         status="new",
         sleep=0
     }
 
-    local ret = {}
     function ret.kill()
         ret = nil
         processes[parent].threads[name]=nil
+        hypervisor.triggerEvent(parent, "threadKilled", name)
     end
-    function ret.join()
-        
+    function ret.pause()
+        processes[parent].threads[name].status="paused"
     end
+    function ret.resume()
+        if processes[parent].threads[name].status=="paused" then
+            processes[parent].threads[name].status="normal"
+        end
+    end
+    function ret.status()
+        return processes[parent].threads[name].status
+    end
+    return ret
 end
 
 function thread.exit()
     currentThread=nil
 end
 
-function hypervisor.createProcessFromFunc(func)
+function thread.sleep(wtime)
+    local ntime=time+wtime
+    currentThread.sleep=ntime
+    currentThread.status="sleeping"
+end
+local oldSleep=sleep
+_G.sleep=thread.sleep
+
+function hypervisor.createProcessFromFunc(func, name)
+    local id = tostring(UUID())
     
 end
 
-return {}
+args.setRequire("hypervisor", hypervisor)
+args.setRequire("thread", thread)
+
+local function main(func)
+    hypervisor.createProcessFromFunc(func, name)
+    while true do
+        for i,v in pairs(processes) do
+            currentPCB=v
+            for i2,v2 in pairs(currentPCB.threads) do
+                currentThread=v2
+                coroutine.resume(currentThread.thread)
+                if currentThread==nil or coroutine.status(currentThread.thread)=="dead" then
+                    currentThread=nil
+                end
+                currentPCB.threads[i2]=currentThread
+            end
+            processes[i]=currentPCB
+        end
+        oldSleep(0.02)
+        time=time+0.02
+    end
+end
+
+return main

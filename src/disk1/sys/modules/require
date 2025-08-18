@@ -36,7 +36,7 @@ local function search_module(name,search_paths)
     for _, path in ipairs(search_paths) do
         local filename = replace_question_mark(path, name_path)
         if fs.exists(filename) and not fs.isDir(filename) then
-            local code=fs.open(filename,"rc")
+            local code=fs.open(filename,"x")
             if code then
                 return code, filename
             end
@@ -53,7 +53,10 @@ return {
             require=function(query)
                 if loaded[query] then return loaded[query] end
                 local code,file=search_module(query,config)
-                local ok,lib=pcall(load(code))
+                if code==nil then
+                    error(file)
+                end
+                local ok,_,lib=pcall(pcall,code)
                 if ok then
                     log.log("Added: \""..query.."\" to require registry.")
                     loaded[query]=lib

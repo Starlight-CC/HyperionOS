@@ -3,6 +3,68 @@ local fs=require("filesystem")
 --local sfs=fs.getSudo(args.masterKey)
 local auth=require("auth")
 local hypervisor={}
+local thread={}
 local processes={}
+local events={}
+local UUID_VAL=-1
+local function UUID()
+    UUID_VAL=UUID_VAL+1
+    return UUID_VAL
+end
+-- Stuff related to current process
+local currentPCB={}
+local currentThread=coroutine.create(function() end)
+
+function hypervisor.triggerEvent(event, ...)
+    local args={...}
+    if events[event] then
+        for i,v in pairs(events[event]) do
+            if processes[v.parent] then
+                processes[v.parent].threads["EVH_"..i]=coroutine.create(function()
+                    pcall(v.func, event, table.unpack(args))
+                end)
+            else
+                events[event][i]=nil
+            end
+        end
+    end
+end
+
+function thread.create(func, name, ...)
+    local args={...}
+    local parent=currentPCB.UUID
+    local threadReturn
+
+    if currentPCB.threads[name] then error("thread "..name.." already exists") end
+    currentPCB.threads[name]={
+        thread=coroutine.create(function()
+            local ok, err = pcall(func, table.unpack(args))
+            if not ok then
+                hypervisor.triggerEvent("threadError", parent, name, err)
+            else
+                hypervisor.triggerEvent("threadReturn", parent, name, err)
+            end
+        end),
+        status="new",
+        sleep=0
+    }
+
+    local ret = {}
+    function ret.kill()
+        ret = nil
+        processes[parent].threads[name]=nil
+    end
+    function ret.join()
+        
+    end
+end
+
+function thread.exit()
+    currentThread=nil
+end
+
+function hypervisor.createProcessFromFunc(func)
+    
+end
 
 return {}

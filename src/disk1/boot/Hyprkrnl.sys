@@ -11,20 +11,22 @@ local bootArgs=({...})[1]
 local bootDrive=bootArgs.bootDrive
 local LOG_TEXT=""
 local log={}
-local term=component.getFirst("screen")
-_G.print=term.print
+local term
+local bootData=load("return "..bootDrive:open("var/log/kernel/bootData").read())()
 local computer=component.getFirst("computer")
-local errorData=load("return "..bootDrive:open("var/log/kernel/errorData").read())()
 local startup=true
-term.clear(0)
-local oldYeild=coroutine.yield
+local oldYield=coroutine.yield
 
 function coroutine.yield(...)
     if coroutine.isyieldable(coroutine.running()) then
-        oldYeild(...)
+        oldYield(...)
     end
 end
 
+-- Find terminal
+term=component.getFirst("screen")
+
+-- Difine logging lib
 local function getPName()
     return "Hyprkrnl"
 end
@@ -42,6 +44,10 @@ end
 function log.warn(text)
     if startup then term.print("[WARN] "..getPName()..": "..text) end
     LOG_TEXT=LOG_TEXT.."[WARN] "..getPName()..": "..text.."\n"
+end
+
+function log.get()
+    return LOG_TEXT
 end
 
 local function t2t(table)
@@ -84,19 +90,19 @@ local function PANIC(err,lvl)
     term.printInline("KERNEL PANIC: "..err)
     computer.beep(800,0.2,1)
     sleep(0.02)
-    if err==errorData.prevError then
-        errorData.errorCount=errorData.errorCount+1
+    if err==bootData.prevError then
+        bootData.errorCount=bootData.errorCount+1
     else
-        errorData.prevError=err
-        errorData.errorCount=0
+        bootData.prevError=err
+        bootData.errorCount=0
     end
-    bootDrive:open("var/log/kernel/errorData").write(t2t(errorData))
-    if errorData.errorCount < 4 then
+    bootDrive:open("var/log/kernel/bootData").write(t2t(bootData))
+    if bootData.errorCount < 4 then
         term.print("")
         term.print("Atempting reboot...")
         sleep(0.5)
         computer.reboot()
-    elseif errorData.errorCount > 3 then
+    elseif bootData.errorCount > 3 then
         term.print("")
         term.print("boot determined to be unrecoverable...")
         sleep(0.5)
@@ -152,12 +158,4 @@ end,"Hyprkrnl")
 ]]
 log.log("Created kernel process")
 startup=false
-
-term.clear()
-term.setGfxMode()
-term.drawBox(0,0,100,100, 255)
-
-while true do
-    
-end
 PANIC("FORCE_KERNEL_PANIC")

@@ -1,0 +1,6 @@
+local pixel
+local screen
+
+for i,v in component.list("pixelscreen") do
+    
+end

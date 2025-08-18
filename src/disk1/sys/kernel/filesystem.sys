@@ -71,6 +71,7 @@ local function getHandle(backing,typ,clear)
 end
 
 local function open(path,mode,pc)
+    coroutine.yield()
     if pc then
         checkPerms(path, mode)
     end
@@ -131,18 +132,21 @@ end
 
 -- This fixes the weirdest bug ever
 local isDir = function(path, pc)
+    coroutine.yield()
     if pc then checkPerms(path, "r") end
     local drive, newPath = resolve(path)
     return drive:directoryExists(newPath)
 end
 
 local exists = function(path, pc)
+    coroutine.yield()
     if pc then checkPerms(path, "r") end
     local drive, newPath = resolve(path)
     return (drive:directoryExists(newPath)) or (drive:fileExists(newPath))
 end
 
 local delete = function(path, pc)
+    coroutine.yield()
     if pc then checkPerms(path, "w") end
     local drive, newPath = resolve(path)
     return drive:delete(newPath)
@@ -161,6 +165,7 @@ function fs.delete(path)
 end
 
 function fs.getSudo(key)
+    coroutine.yield()
     if auth.sudo.isAproved(key) then
         return {
             createVirtDisk=function(virtualDiskName,virtualDiskObj)

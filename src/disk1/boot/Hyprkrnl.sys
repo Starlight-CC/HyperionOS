@@ -12,10 +12,11 @@ local bootDrive=bootArgs.bootDrive
 local LOG_TEXT=""
 local log={}
 local term=component.getFirst("screen")
+_G.print=term.print
 local computer=component.getFirst("computer")
 local errorData=load("return "..bootDrive:open("var/log/kernel/errorData").read())()
 local startup=true
-term.clear()
+term.clear(0)
 local oldYeild=coroutine.yield
 
 function coroutine.yield(...)
@@ -95,13 +96,14 @@ local function PANIC(err,lvl)
         term.print("Atempting reboot...")
         sleep(0.5)
         computer.reboot()
-        while true do end
-    elseif errorData.errorCount <= 4 then
+    elseif errorData.errorCount > 3 then
         term.print("")
         term.print("boot determined to be unrecoverable...")
         sleep(0.5)
         computer.shutdown()
-        while true do end
+    end
+    while true do
+        
     end
 end
 
@@ -128,7 +130,8 @@ local packages={filesystem=fs, auth=auth, logging=log, term=term}
 local req=runAsKernel("sys/modules/require",{filesystem=fs,logging=log, preload=packages})
 log.log("Loaded require")
 local setRequire
-_G.require,setRequire=req.makeRequire("/lib/?;/lib/?/init;/sys/modules/?;/sys/modules/?/init",packages)
+local requ=req.makeRequire("/lib/?;/lib/?/init;/sys/modules/?;/sys/modules/?/init",packages)
+_G.require, setRequire = requ.require, requ.load
 --setRequire("require",req)
 log.log("Initailized require")
 
@@ -150,4 +153,11 @@ end,"Hyprkrnl")
 log.log("Created kernel process")
 startup=false
 
+term.clear()
+term.setGfxMode()
+term.drawBox(0,0,100,100, 255)
+
+while true do
+    
+end
 PANIC("FORCE_KERNEL_PANIC")

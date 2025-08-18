@@ -153,6 +153,7 @@ end
 log.log("Loaded hypervisor")
 log.log("Created kernel process")
 startup=false
+
 hypervisor(function()
     local hpv=require("hypervisor")
     hpv.createProcessFromFile("sys/os/init.lua", "system")

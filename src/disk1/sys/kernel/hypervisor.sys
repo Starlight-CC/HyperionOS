@@ -8,16 +8,32 @@ local processes={}
 local events={}
 local UUID_VAL=-1
 local time=0
+local term=component.getFirst("screen")
 local function UUID()
     UUID_VAL=UUID_VAL+1
     return UUID_VAL
 end
 -- Stuff related to current process
 local currentPCB={
-    exe="/boot/Hyprkrnl.sys"
+    exe="/boot/Hyprkrnl.sys",
+    name="Hyprkrnl"
 }
 
 local currentThread={}
+
+args.pname(function()
+    return currentPCB.name
+end)
+
+function hypervisor.addEvent(event, func)
+    if not events[currentPCB.UUID] then
+        events[currentPCB.UUID]={}
+    end
+    if not events[currentPCB.UUID][event] then
+        events[currentPCB.UUID][event]={}
+    end
+    events[currentPCB.UUID][event][#events[currentPCB.UUID][event]+1] = func
+end
 
 function hypervisor.triggerEvent(target, event, ...)
     local args={...}
@@ -78,7 +94,7 @@ function thread.create(func, name, ...)
     currentPCB.threads[name]=createTCB(func, args, parent, ret, name)
     function ret.kill()
         ret = nil
-        processes[parent].threads[name]=nil
+        processes[parent].threads[name].status="exit"
         hypervisor.triggerEvent(parent, "threadKilled", name)
     end
     function ret.pause()
@@ -96,16 +112,17 @@ function thread.create(func, name, ...)
 end
 
 function thread.exit()
-    currentThread=nil
+    currentThread.status="exit"
 end
 
 function thread.sleep(wtime)
     local ntime=time+wtime
     currentThread.sleep=ntime
     currentThread.status="sleeping"
+    coroutine.yield()
 end
 local oldSleep=sleep
-_G.sleep=thread.sleep
+sleep=thread.sleep
 
 function hypervisor.createProcessFromFunc(func, name, ...)
     local id = tostring(UUID())
@@ -116,10 +133,13 @@ function hypervisor.createProcessFromFunc(func, name, ...)
             main=createTCB(func, args, id, ret, "main")
         },
         status="new",
-        sleep=0
+        Iyeid=0,
+        Vyeild=0,
+        UUID=id,
+        name=name
     }
     function ret.kill()
-        processes[id]=nil
+        processes[id].status="exit"
     end
     function ret.pause()
         processes[id].status="paused"
@@ -129,31 +149,88 @@ function hypervisor.createProcessFromFunc(func, name, ...)
             processes[id].status="normal"
         end
     end
+    function ret.getID()
+        return id
+    end
+    return ret
+end
+
+function hypervisor.isrunning(pid)
+    if processes[tostring(pid)] then
+        return true
+    else
+        return false
+    end
+end
+
+function hypervisor.createProcessFromFile(path, name, ...)
+    local file = fs.open(path, "x")
+    local ret = hypervisor.createProcessFromFunc(file, name, ...)
+    processes[ret.getID()].exe=path
+    return ret
+end
+
+local function pruneDeadEvents()
+    for i,v in pairs(events) do
+        if not processes[i] then
+            events[i]=nil
+        end
+    end
 end
 
 args.setRequire("hypervisor", hypervisor)
 args.setRequire("thread", thread)
 
 local function main(func)
-    hypervisor.createProcessFromFunc(func, name)
+    hypervisor.createProcessFromFunc(func, "Hyprkrnl")
     while true do
         for i,v in pairs(processes) do
             currentPCB=v
-            for i2,v2 in pairs(currentPCB.threads) do
-                currentThread=v2
-                coroutine.resume(currentThread.thread)
-                if i2=="main" then
-                    if currentThread==nil or coroutine.status(currentThread.thread)=="dead" then
-                        currentPCB=nil
-                        hypervisor.triggerEvent("all", "processExit", i)
-                    end
-                else
-                    if currentThread==nil or coroutine.status(currentThread.thread)=="dead" then
+            if currentPCB==nil then
+            elseif currentPCB.status == "paused" then
+            elseif currentPCB.status=="exit" then
+                currentPCB=nil
+            else
+                for i2,v2 in pairs(currentPCB.threads) do
+                    currentThread=v2
+                    if currentThread==nil then
+                    elseif currentThread.status=="paused" then
+                    elseif currentThread.status=="sleeping" then
+                        if time>=currentThread.sleep then
+                            currentThread.status="normal"
+                        end
+                    elseif currentThread.status=="exit" then
                         currentThread=nil
+                    else
+                        local timeout = coroutine.resumeWithTimeout(currentThread.thread, 0.02)
+                        if currentThread.status=="new" then
+                            currentThread.status="normal"
+                        end
+                        if timeout then
+                            currentPCB.Iyeid=currentPCB.Iyeid+1
+                        else
+                            currentPCB.Vyeild=currentPCB.Vyeild+1
+                        end
+                        if i2=="main" then
+                            if currentThread.status=="exit" or coroutine.status(currentThread.thread)=="dead" then
+                                currentPCB.status="exit"
+                                pruneDeadEvents()
+                                hypervisor.triggerEvent("all", "processExit", i)
+                            end
+                        else
+                            if currentThread.status=="exit" or coroutine.status(currentThread.thread)=="dead" then
+                                currentThread.status="exit"
+                            end
+                        end
+                    end
+                    if currentPCB~=nil then
+                        currentPCB.threads[i2]=currentThread
                     end
                 end
-                if currentPCB then
-                    currentPCB.threads[i2]=currentThread
+                if currentPCB~=nil then
+                    if currentPCB.status=="new" then
+                        currentPCB.status="normal"
+                    end
                 end
             end
             processes[i]=currentPCB

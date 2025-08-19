@@ -140,3 +140,4 @@ for i,v in pairs(biosCfg.bootSeq) do
 end
 computer.beep(400,0.4)
 print("No boot options available")
+computer.shutdown()

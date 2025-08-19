@@ -1,5 +1,5 @@
 local function rand()
-    if math.random(0)==0 then return true else return false end
+    if math.random(0,1)==0 then return true else return false end
 end
 function coroutine.resumeWithTimeout(CORO, TIME, ...)
     return rand(), coroutine.resume(CORO, ...)
@@ -12,14 +12,17 @@ local bootDrive=bootArgs.bootDrive
 local LOG_TEXT=""
 local log={}
 local term
-local bootData=load("return "..bootDrive:open("var/log/kernel/bootData").read())()
+local bootData=load("return "..(bootDrive:open("var/log/kernel/bootData").read() or "{}"))()
 local computer=component.getFirst("computer")
 local startup=true
+local osleep=sleep
 local oldYield=coroutine.yield
 
 function coroutine.yield(...)
-    if coroutine.isyieldable(coroutine.running()) then
-        oldYield(...)
+    if not startup then
+        if coroutine.isyieldable(coroutine.running()) then
+            oldYield(...)
+        end
     end
 end
 
@@ -27,7 +30,10 @@ end
 term=component.getFirst("screen")
 
 -- Difine logging lib
-local function getPName()
+local function getPName(func)
+    if type(func) == "function" then
+        getPName=func
+    end
     return "Hyprkrnl"
 end
 
@@ -89,7 +95,7 @@ local function PANIC(err,lvl)
     term.print(LOG_TEXT)
     term.printInline("KERNEL PANIC: "..err)
     computer.beep(800,0.2,1)
-    sleep(0.02)
+    osleep(0.02)
     if err==bootData.prevError then
         bootData.errorCount=bootData.errorCount+1
     else
@@ -100,12 +106,12 @@ local function PANIC(err,lvl)
     if bootData.errorCount < 4 then
         term.print("")
         term.print("Atempting reboot...")
-        sleep(0.5)
+        osleep(0.5)
         computer.reboot()
     elseif bootData.errorCount > 3 then
         term.print("")
         term.print("boot determined to be unrecoverable...")
-        sleep(0.5)
+        osleep(0.5)
         computer.shutdown()
     end
     while true do
@@ -116,7 +122,7 @@ end
 local function runAsKernel(path, args)
     local ok,err,extra = pcall(load(bootDrive:open(path):read()), args)
     if not ok then
-        PANIC(path.." failed to load/execute err:\n"..err)
+        PANIC(path.." failed to load/execute err:\n"..(err or ""))
     end
     return err,extra
 end
@@ -141,12 +147,12 @@ _G.require, setRequire = requ.require, requ.load
 setRequire("require",req)
 log.log("Initailized require")
 
-local code=fs.open("sys/kernel/hypervisor.sys","x")
+local code=fs.open("sys/kernel/hypervisor.sys","xe")
 
 if not code then
     PANIC("Hypervisor failed to load")
 end
-local ok,hypervisor=pcall(code,{masterKey=sudoMaster,setRequire=setRequire})
+local ok,hypervisor=pcall(code,{masterKey=sudoMaster,setRequire=setRequire, pname=getPName})
 if not ok then
     PANIC("Hypervisor failed to execute ERR:\n"..hypervisor)
 end
@@ -161,4 +167,5 @@ hypervisor(function()
         coroutine.yield()
     end
 end)
+
 PANIC("Hypervisor exited")

@@ -1,0 +1,39 @@
+local stringBuffer=""
+local hpv = require("hypervisor")
+local fs = require("filesystem")
+local term=component.getFirst("screen")
+local captureInput=true
+
+local function printPrefix()
+    term.printInline("root@testharness:/&")
+end
+
+hpv.addEvent("keyTyped",function(...)
+    if not captureInput then return end
+    local char=({...})[1]
+    if char == "\n" then
+        captureInput=false
+        print("")
+    elseif char == "\b" then
+        stringBuffer=stringBuffer:sub(1,#stringBuffer-1)
+        term.printInline(char)
+    else
+        stringBuffer=stringBuffer..char
+        term.printInline(char)
+    end
+end)
+
+while true do
+    while not captureInput do
+        sleep(1)
+    end
+    local handle
+    if fs.exists("bin/"..stringBuffer) then
+        handle = hpv.createProcessFromFile("bin/"..stringBuffer)
+        local pid=handle.getPID()
+        while hpv.isrunning(pid) do
+            sleep(1)
+        end
+    end
+    printPrefix()
+end

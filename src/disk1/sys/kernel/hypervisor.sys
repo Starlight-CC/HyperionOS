@@ -70,6 +70,11 @@ end
 
 function hypervisor.triggerEvent(target, event, ...)
     local args={...}
+    if event=="shutdown" then
+        if currentPCB.UUID~="0" then
+            error("this event is kernel only")
+        end
+    end
     if events[target] then
         if events[target][event] then
             for i,v in pairs(events[target][event]) do
@@ -249,9 +254,15 @@ local function funct(tble,space)
         end
     end
 end
+
 local function main(func)
-    hypervisor.createProcessFromFunc(func, "Hyprkrnl")
-    while true do
+    local handle=hypervisor.createProcessFromFunc(func, "Hyprkrnl")
+    local debugger=hypervisor.attachDebugger(handle)
+    local exit=false
+    debugger.addEvent("shutdown", function()
+        exit=true
+    end)
+    while not exit do
         for i,v in pairs(processes) do
             currentPCB=v
             if currentPCB==nil then

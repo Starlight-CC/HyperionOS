@@ -175,14 +175,10 @@ hypervisor(function()
             end
         end
     end, "eventHandler")
-    thread.create(function()
-        sleep(1)
-        PANIC("HI :)")
-    end,"hehe")
-    while true do
 
+    while true do
         coroutine.yield()
     end
 end)
 
-PANIC("Hypervisor exited")
+term.print("Goodbye :)")

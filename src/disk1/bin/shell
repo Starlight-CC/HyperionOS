@@ -3,7 +3,7 @@ local hpv = require("hypervisor")
 local fs = require("filesystem")
 local term=component.getFirst("screen")
 local captureInput=true
-
+local exit=false
 local function printPrefix()
     term.printInline("root@testharness:/& ")
 end
@@ -30,12 +30,14 @@ hpv.addEvent("keyTyped",function(...)
 end)
 
 printPrefix()
-while true do
+while not exit do
     while captureInput do
         sleep(1)
     end
     local token = tokenize(stringBuffer)
-    if fs.exists("/bin/"..token[1]) and (not fs.isDir("/bin/"..token[1])) then
+    if token[1] == "exit" then
+        exit=true
+    elseif fs.exists("/bin/"..token[1]) and (not fs.isDir("/bin/"..token[1])) then
         local handle = hpv.createProcessFromFile("/bin/"..token[1], "/bin/"..token[1], table.unpack(token, 2))
         local pid=handle.getID()
         while hpv.isrunning(pid) do

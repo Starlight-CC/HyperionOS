@@ -232,6 +232,22 @@ function hypervisor.attachDebugger(handle)
     return "Invailid handle"
 end
 
+function hypervisor.listProc()
+    local list={}
+    for i,v in pairs(processes) do
+        local threads={}
+        for i2,v2 in pairs(v.threads) do
+            threads[#threads+1] = {name=v2.name, status=v2.status}
+        end
+        list[#list+1] = {pid=v.UUID, name=v.name, status=v.status, threads=threads}
+    end
+    local i=0
+    return function()
+        i=i+1
+        return list[i]
+    end
+end
+
 local function pruneDeadEvents()
     for i,v in pairs(events) do
         if not processes[i] then

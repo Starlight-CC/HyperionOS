@@ -38,7 +38,7 @@ while not exit do
     if token[1] == "exit" then
         exit=true
     elseif fs.exists("/bin/"..token[1]) and (not fs.isDir("/bin/"..token[1])) then
-        local handle = hpv.createProcessFromFile("/bin/"..token[1], "/bin/"..token[1], table.unpack(token, 2))
+        local handle = hpv.createProcessFromFile("/bin/"..token[1], token[1], table.unpack(token, 2))
         local pid=handle.getID()
         while hpv.isrunning(pid) do
             sleep(0.5)

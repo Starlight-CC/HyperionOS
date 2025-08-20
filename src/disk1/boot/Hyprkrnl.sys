@@ -147,7 +147,7 @@ _G.require, setRequire = requ.require, requ.load
 setRequire("require",req)
 log.log("Initailized require")
 
-local code=fs.open("sys/kernel/hypervisor.sys","xe")
+local code=fs.open("sys/kernel/hypervisor.sys","xe", _G)
 
 if not code then
     PANIC("Hypervisor failed to load")
@@ -162,8 +162,25 @@ startup=false
 
 hypervisor(function()
     local hpv=require("hypervisor")
+    local thread=require("thread")
     hpv.createProcessFromFile("sys/os/init.lua", "system")
+    thread.create(function()
+        while true do
+            local event = {computer.getMachineEvent()}
+            if event[1] == nil then
+                coroutine.yield()
+            else
+                hpv.triggerEvent("all", event[1], table.unpack(event,2))
+                coroutine.yield()
+            end
+        end
+    end, "eventHandler")
+    thread.create(function()
+        sleep(1)
+        PANIC("HI :)")
+    end,"hehe")
     while true do
+
         coroutine.yield()
     end
 end)

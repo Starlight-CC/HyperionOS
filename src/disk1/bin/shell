@@ -5,7 +5,11 @@ local term=component.getFirst("screen")
 local captureInput=true
 
 local function printPrefix()
-    term.printInline("root@testharness:/&")
+    term.printInline("root@testharness:/& ")
+end
+
+local function tokenize(str)
+    return string.split(str, " ")
 end
 
 hpv.addEvent("keyTyped",function(...)
@@ -13,27 +17,34 @@ hpv.addEvent("keyTyped",function(...)
     local char=({...})[1]
     if char == "\n" then
         captureInput=false
-        print("")
+        term.print("")
     elseif char == "\b" then
-        stringBuffer=stringBuffer:sub(1,#stringBuffer-1)
-        term.printInline(char)
+        if #stringBuffer > 0 then
+            stringBuffer=stringBuffer:sub(1,#stringBuffer-1)
+            term.printInline(char)
+        end
     else
         stringBuffer=stringBuffer..char
         term.printInline(char)
     end
 end)
 
+printPrefix()
 while true do
-    while not captureInput do
+    while captureInput do
         sleep(1)
     end
-    local handle
-    if fs.exists("bin/"..stringBuffer) then
-        handle = hpv.createProcessFromFile("bin/"..stringBuffer)
-        local pid=handle.getPID()
+    local token = tokenize(stringBuffer)
+    if fs.exists("/bin/"..token[1]) and (not fs.isDir("/bin/"..token[1])) then
+        local handle = hpv.createProcessFromFile("/bin/"..token[1], "/bin/"..token[1], table.unpack(token, 2))
+        local pid=handle.getID()
         while hpv.isrunning(pid) do
-            sleep(1)
+            sleep(0.5)
         end
+    else
+        term.print("Command not recognized")
     end
+    stringBuffer=""
     printPrefix()
+    captureInput=true
 end

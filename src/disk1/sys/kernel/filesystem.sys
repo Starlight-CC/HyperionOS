@@ -70,7 +70,7 @@ local function getHandle(backing,typ,clear)
     return ret
 end
 
-local function open(path,mode,pc)
+local function open(path, mode, arg, pc)
     if pc then
         checkPerms(path, mode)
     end
@@ -108,14 +108,14 @@ local function open(path,mode,pc)
         local file=getHandle(backing,"r")
         local text=file.read()
         file.close()
-        return load(text, path, nil, _G)
+        return load(text, path, nil, arg)
     else
         error("Invailid mode")
     end
 end
 
-function fs.open(path, mode)
-    return open(path, mode, true)
+function fs.open(path, mode, arg)
+    return open(path, mode, arg, true)
 end
 
 function fs.copy(orig, dest)
@@ -143,7 +143,7 @@ end
 local exists = function(path, pc)
     if pc then checkPerms(path, "r") end
     local drive, newPath = resolve(path)
-    return (drive:directoryExists(newPath)) or (drive:fileExists(newPath))
+    return ((drive:directoryExists(newPath)) or (drive:fileExists(newPath)))
 end
 
 local delete = function(path, pc)
@@ -153,15 +153,15 @@ local delete = function(path, pc)
 end
 
 function fs.isDir(path)
-    isDir(path, true)
+    return isDir(path, true)
 end
 
 function fs.exists(path)
-    exists(path, true)
+    return exists(path, true)
 end
 
 function fs.delete(path)
-    delete(path, true)
+    return delete(path, true)
 end
 
 function fs.getSudo(key)
@@ -180,19 +180,19 @@ function fs.getSudo(key)
                 disks[hardwareDir]=nil
             end,
             sfs={
-                open=function(path, mode)
-                    return open(path, mode)
+                open=function(path, mode, arg)
+                    return open(path, mode, arg)
                 end,
                 delete=function(path)
-                    delete(path)
+                    return delete(path)
                 end,
                 copy=fs.copy,
                 move=fs.move,
                 exists=function(path)
-                    exists(path)
+                    return exists(path)
                 end,
                 isDir=function(path)
-                    isDir(path)
+                    return isDir(path)
                 end
             }
         }

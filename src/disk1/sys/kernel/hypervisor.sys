@@ -7,6 +7,7 @@ local thread={}
 local processes={}
 local events={}
 local UUID_VAL=-1
+local euuid=-1
 local time=0
 local term=component.getFirst("screen")
 local function UUID()
@@ -25,47 +26,27 @@ args.pname(function()
     return currentPCB.name
 end)
 
-function hypervisor.addEvent(event, func)
-    if not events[currentPCB.UUID] then
-        events[currentPCB.UUID]={}
+local function addEvent(event, func, id)
+    if not events[id] then
+        events[id]={}
     end
-    if not events[currentPCB.UUID][event] then
-        events[currentPCB.UUID][event]={}
+    if not events[id][event] then
+        events[id][event]={}
     end
-    events[currentPCB.UUID][event][#events[currentPCB.UUID][event]+1] = func
+    local ret={}
+    euuid=euuid+1
+    local eid=tostring(euuid)
+    local parent=id
+    events[id][event][eid] = func
+    function ret.close()
+        events[parent][event][eid]=nil
+        ret=nil
+    end
+    return ret
 end
 
-function hypervisor.triggerEvent(target, event, ...)
-    local args={...}
-    if events[target] then
-        if events[target][event] then
-            for i,v in pairs(events[target][event]) do
-                if processes[v.parent] then
-                    processes[v.parent].threads["EVH_"..i]=coroutine.create(function()
-                        pcall(v.func, event, table.unpack(args))
-                    end)
-                else
-                    events[target][event][i]=nil
-                end
-            end
-        end
-    else
-        if target=="all" then
-            for _, t in pairs(events) do
-                if t[event] then
-                    for i,v in pairs(events[target][event]) do
-                        if processes[v.parent] then
-                            processes[v.parent].threads["EVH_"..i]=coroutine.create(function()
-                                pcall(v.func, event, table.unpack(args))
-                            end)
-                        else
-                            events[target][event][i]=nil
-                        end
-                    end
-                end
-            end
-        end
-    end
+function hypervisor.addEvent(event, func)
+    return addEvent(event, func, currentPCB.UUID)
 end
 
 local function createTCB(func, args, parent, ret, name)
@@ -74,24 +55,74 @@ local function createTCB(func, args, parent, ret, name)
             local ok, err = pcall(func, table.unpack(args))
             if not ok then
                 ret=nil
-                hypervisor.triggerEvent(parent, "threadError", name, err)
+                hypervisor.triggerEvent(parent, "threadError", parent, name, err)
             else
                 ret=nil
-                hypervisor.triggerEvent(parent, "threadReturn", name, err)
+                hypervisor.triggerEvent(parent, "threadReturn", parent, name, err)
             end
         end),
         status="new",
-        sleep=0
+        sleep=0,
+        handle=ret,
+        name=name
     }
 end
 
-function thread.create(func, name, ...)
+function hypervisor.triggerEvent(target, event, ...)
     local args={...}
-    local parent=currentPCB.UUID
+    if events[target] then
+        if events[target][event] then
+            for i,v in pairs(events[target][event]) do
+                if processes[target] then
+                    processes[target].threads["EVH_"..i]=createTCB(v, args, target, nil, "EVH_"..i)
+                else
+                    events[target]=nil
+                end
+            end
+        end
+        if events[target]["all"] then
+            for i,v in pairs(events[target]["all"]) do
+                if processes[target] then
+                    processes[target].threads["EVH_"..i]=createTCB(v, {event, table.unpack(args)}, target, nil, "EVH_"..i)
+                else
+                    events[target]=nil
+                end
+            end
+        end
+    else
+        if target=="all" then
+            for p, t in pairs(events) do
+                if t[event] then
+                    for i,v in pairs(t[event]) do
+                        if processes[p] then
+                            processes[p].threads["EVH_"..i]=createTCB(v, args, p, nil, "EVH_"..i)
+                        else
+                            events[p]=nil
+                        end
+                    end
+                end
+                if t["all"] then
+                    for i,v in pairs(t[event]) do
+                        if processes[p] then
+                            processes[p].threads["EVH_"..i]=createTCB(v, {event, table.unpack(args)}, p, nil, "EVH_"..i)
+                        else
+                            events[p]=nil
+                        end
+                    end
+                end
+            end
+        end
+    end
+end
 
-    if currentPCB.threads[name] then error("thread "..name.." already exists") end
+local function createThread(id, func, name, ...)
+    local args={...}
+    if not name then error("name must be supplied") end
+    local parent=id
+
+    if processes[id].threads[name] then error("thread "..name.." already exists") end
     local ret = {}
-    currentPCB.threads[name]=createTCB(func, args, parent, ret, name)
+    processes[id].threads[name]=createTCB(func, args, parent, ret, name)
     function ret.kill()
         ret = nil
         processes[parent].threads[name].status="exit"
@@ -111,6 +142,10 @@ function thread.create(func, name, ...)
     return ret
 end
 
+function thread.create(func, name, ...)
+    createThread(currentPCB.UUID, func, name, ...)
+end
+
 function thread.exit()
     currentThread.status="exit"
 end
@@ -121,11 +156,13 @@ function thread.sleep(wtime)
     currentThread.status="sleeping"
     coroutine.yield()
 end
+
 local oldSleep=sleep
 sleep=thread.sleep
 
 function hypervisor.createProcessFromFunc(func, name, ...)
     local id = tostring(UUID())
+    if not name then error("name must be supplied") end
     local args={...}
     local ret={}
     processes[id]={
@@ -133,10 +170,11 @@ function hypervisor.createProcessFromFunc(func, name, ...)
             main=createTCB(func, args, id, ret, "main")
         },
         status="new",
-        Iyeid=0,
+        Iyeild=0,
         Vyeild=0,
         UUID=id,
-        name=name
+        name=name,
+        handle=ret
     }
     function ret.kill()
         processes[id].status="exit"
@@ -156,7 +194,7 @@ function hypervisor.createProcessFromFunc(func, name, ...)
 end
 
 function hypervisor.isrunning(pid)
-    if processes[tostring(pid)] then
+    if table.hasKey(processes, pid) then
         return true
     else
         return false
@@ -170,6 +208,25 @@ function hypervisor.createProcessFromFile(path, name, ...)
     return ret
 end
 
+function hypervisor.attachDebugger(handle)
+    local pid=handle.getID()
+    if processes[pid] then
+        if handle==processes[pid].handle then
+            hypervisor.triggerEvent(pid, "attachDebugger", currentPCB.UUID, currentThread.name)
+            local ret = {
+                addEvent=function(event, func)
+                    return addEvent(event, func, pid)
+                end,
+                makeThread=function(func, name, ...)
+                    return createThread(pid, func, name, ...)
+                end
+            }
+            return ret
+        end
+    end
+    return "Invailid handle"
+end
+
 local function pruneDeadEvents()
     for i,v in pairs(events) do
         if not processes[i] then
@@ -180,7 +237,18 @@ end
 
 args.setRequire("hypervisor", hypervisor)
 args.setRequire("thread", thread)
-
+local print=component.getFirst("screen").print
+local function funct(tble,space)
+    space=space or ""
+    for i,v in pairs(tble) do
+        print(space..tostring(i).." | "..tostring(v))
+        if type(v) == "table" then
+            if i=="_G" then else
+                funct(v,space.."   ")
+            end
+        end
+    end
+end
 local function main(func)
     hypervisor.createProcessFromFunc(func, "Hyprkrnl")
     while true do
@@ -203,22 +271,25 @@ local function main(func)
                         currentThread=nil
                     else
                         local timeout = coroutine.resumeWithTimeout(currentThread.thread, 0.02)
+                        --funct(processes)
                         if currentThread.status=="new" then
                             currentThread.status="normal"
                         end
                         if timeout then
-                            currentPCB.Iyeid=currentPCB.Iyeid+1
+                            currentPCB.Iyeild=currentPCB.Iyeild+1
                         else
                             currentPCB.Vyeild=currentPCB.Vyeild+1
                         end
                         if i2=="main" then
                             if currentThread.status=="exit" or coroutine.status(currentThread.thread)=="dead" then
+                                --funct(processes)
                                 currentPCB.status="exit"
                                 pruneDeadEvents()
-                                hypervisor.triggerEvent("all", "processExit", i)
+                                hypervisor.triggerEvent("all", "processExit", i, currentPCB.name)
                             end
                         else
                             if currentThread.status=="exit" or coroutine.status(currentThread.thread)=="dead" then
+                                --funct(processes)
                                 currentThread.status="exit"
                             end
                         end

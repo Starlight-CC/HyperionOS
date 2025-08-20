@@ -1,0 +1,7 @@
+local hpv=require("hypervisor")
+local term=component.getFirst("screen")
+
+term.clear()
+for i in hpv.listProc() do
+    term.print(i.name, i.pid, i.status, table.unpack(i.threads))
+end

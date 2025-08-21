@@ -1,0 +1,39 @@
+local hpv=require("hypervisor")
+local thread=require("thread")
+local fs=require("filesystem")
+local ini=require("config.ini")
+local log=require("logging")
+
+local function getPath(path)
+    local files=fs.list(path)
+    local ret={}
+    for i,v in ipairs(files) do
+        if fs.isDir(path..v) then
+            ret[v]=getPath(path..v.."/")
+        else
+            ret[v]=fs.read(path..v, "rc")
+        end
+    end
+    return ret
+end
+
+local config=getPath("etc/systemd/")
+
+local function execute(entry)
+    local cfg=ini.get(entry)
+    if cfg.
+end
+
+local function createThread(n,e)
+    thread.create(function(entry)
+        if type(entry)=="table" then
+            for i,v in pairs(config) do
+                createThread(i,v)
+            end
+        else
+            execute(entry)
+        end
+    end,n,e)
+end
+
+createThread("workerTemp",config)

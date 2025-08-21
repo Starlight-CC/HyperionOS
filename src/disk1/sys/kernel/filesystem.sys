@@ -168,6 +168,16 @@ local delete = function(path, pc)
     return drive:delete(newPath)
 end
 
+local list = function(path, pc)
+    if pc then checkPerms(path, "w") end
+    local drive, newPath = resolve(path)
+    return drive:list(newPath)
+end
+
+function fs.list(path)
+    return list(path, true)
+end
+
 function fs.isDir(path)
     return isDir(path, true)
 end
@@ -209,6 +219,9 @@ function fs.getSudo(key)
                 end,
                 isDir=function(path)
                     return isDir(path)
+                end,
+                list=function(path)
+                    return list(path)
                 end
             }
         }

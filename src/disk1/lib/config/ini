@@ -12,14 +12,17 @@ local function trim(s)
     return s:sub(i, j)
 end
 
-function ini.read(path)
-    local file, err = fs.open(path, "r")
-    if not file then return nil, err end
-
+local function parse(list)
+    local lines=function ()
+        local i=0
+        return function()
+            i=i+1
+            return list[i]
+        end
+    end
     local data = {}
     local section = data
-
-    for line in file.lines() do
+    for line in lines() do
         line = trim(line)
 
         if line ~= "" and line:sub(1,1) ~= ";" and line:sub(1,1) ~= "#" then
@@ -55,31 +58,53 @@ function ini.read(path)
         end
     end
 
-    file.close()
     return data
 end
 
-function ini.write(path, data)
-    local file, err = fs.open(path, "w")
+function ini.read(path)
+    local file, err = fs.open(path, "r")
     if not file then return nil, err end
+    local list={}
+    for i in file.lines() do
+        list[#list+1] = i
+    end
+    file.close()
+    return parse(list)
+end
 
+function ini.get(text)
+    return parse(string.split(text, "\n"))
+end
+
+local function write(data)
+    local text=""
     for k,v in pairs(data) do
         if type(v) ~= "table" then
-            file.write(k .. " = " .. tostring(v) .. "\n")
+            text=text..k .. " = " .. tostring(v) .. "\n"
         end
     end
 
     for sec, tbl in pairs(data) do
         if type(tbl) == "table" then
-            file.write("\n[" .. sec .. "]\n")
+            text=text.."\n[" .. sec .. "]\n"
             for k,v in pairs(tbl) do
-                file.write(k .. " = " .. tostring(v) .. "\n")
+                text=text..k .. " = " .. tostring(v) .. "\n"
             end
         end
     end
 
+    return text
+end
+
+function ini.write(path, data)
+    local file=fs.open(path, "w")
+    file.write(write(data))
     file.close()
     return true
+end
+
+function ini.make(data)
+    return write(data)
 end
 
 return ini

@@ -50,6 +50,14 @@ local function getHandle(backing,typ,clear)
         ret.read=function()
             return backing.read()
         end
+        ret.lines=function()
+            local lines=string.split(backing.read(), "\n")
+            local i=0
+            return function()
+                i=i+1
+                return lines[i]
+            end
+        end
     elseif typ=="w" then
         ret.write=function(data)
             backing.append(data)
@@ -57,6 +65,14 @@ local function getHandle(backing,typ,clear)
     elseif typ=="m" then
         ret.read=function()
             return backing.read()
+        end
+        ret.lines=function()
+            local lines=string.split(backing.read(), "\n")
+            local i=0
+            return function()
+                i=i+1
+                return lines[i]
+            end
         end
         ret.write=function(data)
             backing.append(data)

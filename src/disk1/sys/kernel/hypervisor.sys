@@ -54,12 +54,22 @@ local function createTCB(func, args, parent, ret, name)
     return {
         thread=coroutine.create(function()
             local ok, err = pcall(func, table.unpack(args))
-            if not ok then
-                ret=nil
-                hypervisor.triggerEvent(parent, "threadError", parent, name, err)
+            if name=="main" then
+                if not ok then
+                    ret=nil
+                    hypervisor.triggerEvent(parent, "threadError", parent, name, err)
+                else
+                    ret=nil
+                    hypervisor.triggerEvent(parent, "threadReturn", parent, name, err)
+                end
             else
-                ret=nil
-                hypervisor.triggerEvent(parent, "threadReturn", parent, name, err)
+                if not ok then
+                    ret=nil
+                    hypervisor.triggerEvent("all", "processError", parent, name, err)
+                else
+                    ret=nil
+                    hypervisor.triggerEvent("all", "processExit", parent, name, err)
+                end
             end
         end),
         status="new",
@@ -299,7 +309,7 @@ local function main(func)
                         currentThread=nil
                     else
                         local timeout = coroutine.resumeWithTimeout(currentThread.thread, 0.02)
-                        --funct(processes)
+                        funct(processes)
                         if currentThread.status=="new" then
                             currentThread.status="normal"
                         end
@@ -310,10 +320,9 @@ local function main(func)
                         end
                         if i2=="main" then
                             if currentThread.status=="exit" or coroutine.status(currentThread.thread)=="dead" then
-                                --funct(processes)
+                                funct(processes)
                                 currentPCB.status="exit"
                                 pruneDeadEvents()
-                                hypervisor.triggerEvent("all", "processExit", i, currentPCB.name)
                             end
                         else
                             if currentThread.status=="exit" or coroutine.status(currentThread.thread)=="dead" then

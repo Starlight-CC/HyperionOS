@@ -1,0 +1,21 @@
+local done=({...})[1]
+
+local log=require("logging")
+local fs=require("filesystem")
+local hpv=require("hypervisor")
+local serv={}
+
+log.raw("Finding config files")
+local function getPath(path)
+    local ret={}
+    for _,i in ipairs(fs.list(path)) do
+        if fs.isDir(path..i) then
+            ret[i]=getPath(path..i.."/")
+        else
+            ret[i]=fs.open(path..i, "rc")
+        end
+    end
+    return ret
+end
+serv=getPath("etc/systemd/")
+log.log("created cfg path")

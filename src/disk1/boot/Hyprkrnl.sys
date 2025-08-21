@@ -28,6 +28,7 @@ end
 
 -- Find terminal
 term=component.getFirst("screen")
+term.print("Welcome to Hyperion OS")
 
 -- Difine logging lib
 local function getPName(func)
@@ -38,18 +39,23 @@ local function getPName(func)
 end
 
 function log.log(text)
-    if startup then term.print("[LOG] "..getPName()..": "..text) end
-    LOG_TEXT=LOG_TEXT.."[LOG] "..getPName()..": "..text.."\n"
+    if startup then term.print("[  OK  ] "..getPName()..": "..text) end
+    LOG_TEXT=LOG_TEXT.."[  OK  ] "..getPName()..": "..text.."\n"
 end
 
 function log.error(text)
-    if startup then term.print("[ERR] "..getPName()..": "..text) end
-    LOG_TEXT=LOG_TEXT.."[ERR] "..getPName()..": "..text.."\n"
+    if startup then term.print("[FAILED] "..getPName()..": "..text) end
+    LOG_TEXT=LOG_TEXT.."[FAILED] "..getPName()..": "..text.."\n"
 end
 
 function log.warn(text)
-    if startup then term.print("[WARN] "..getPName()..": "..text) end
-    LOG_TEXT=LOG_TEXT.."[WARN] "..getPName()..": "..text.."\n"
+    if startup then term.print("[ WARN ] "..getPName()..": "..text) end
+    LOG_TEXT=LOG_TEXT.."[ WARN ] "..getPName()..": "..text.."\n"
+end
+
+function log.raw(text)
+    if startup then term.print("         "..getPName()..": "..text) end
+    LOG_TEXT=LOG_TEXT.."         "..getPName()..": "..text.."\n"
 end
 
 function log.get()
@@ -129,6 +135,7 @@ end
 
 -- Add libray modifications+
 for _,v in ipairs(bootDrive:list("/sys/kernel/glib")) do
+    log.raw("running "..v)
     runAsKernel("/sys/kernel/glib/"..v)
     log.log("Loaded "..v)
 end
@@ -136,7 +143,7 @@ log.log("finished loading global librarys")
 local sudoMaster={}
 local auth=runAsKernel("sys/kernel/userManager.sys",{masterKey=sudoMaster,bootDrive=bootDrive})
 log.log("Created UE Manager")
-local fs=runAsKernel("sys/kernel/filesystem.sys",{bootDrive=bootDrive,auth=auth})
+local fs=runAsKernel("sys/kernel/filesystem.sys",{bootDrive=bootDrive,auth=auth,log=log})
 log.log("Initailized filesystem")
 local packages={filesystem=fs, auth=auth, logging=log, term=term}
 local req=runAsKernel("sys/modules/require",{filesystem=fs,logging=log, preload=packages})
@@ -162,8 +169,9 @@ log.log("Created kernel process")
 hypervisor(function()
     local hpv=require("hypervisor")
     local thread=require("thread")
-    startup=false
-    hpv.createProcessFromFile("sys/os/init.lua", "system")
+    log.raw("Creating systemd process")
+    hpv.createProcessFromFile("/sys/os/init", "systemd")
+    log.log("Initailized systemd")
     thread.create(function()
         while true do
             local event = {computer.getMachineEvent()}

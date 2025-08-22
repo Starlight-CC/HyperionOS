@@ -153,6 +153,7 @@ end
 
 function thread.exit()
     currentThread.status="exit"
+    coroutine.yield()
 end
 
 function thread.sleep(wtime)

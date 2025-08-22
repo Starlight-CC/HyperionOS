@@ -1,0 +1,8 @@
+local endStartup=({...})[1]
+local hpv=require("hypervisor")
+local thread=require("thread")
+local fs=require("filesystem")
+local ini=require("config.ini")
+local log=require("log")
+
+log.log("Created init")

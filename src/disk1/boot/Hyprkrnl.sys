@@ -144,7 +144,7 @@ local auth=runAsKernel("sys/kernel/userManager.sys",{masterKey=sudoMaster,bootDr
 log.log("Created UE Manager")
 local fs=runAsKernel("sys/kernel/filesystem.sys",{bootDrive=bootDrive,auth=auth})
 log.log("Initailized filesystem")
-local packages={filesystem=fs, auth=auth, logging=log, term=term}
+local packages={filesystem=fs, auth=auth, log=log, term=term}
 local req=runAsKernel("sys/modules/require",{filesystem=fs,logging=log, preload=packages})
 log.log("Loaded require")
 local setRequire
@@ -168,9 +168,11 @@ hypervisor(function()
     local hpv=require("hypervisor")
     local thread=require("thread")
     log.log("Created kernel process")
-    startup=false
-    hpv.createProcessFromFile("sys/systemd.sys", "systemd")
+    log.raw("Making init")
+    hpv.createProcessFromFile("sys/init", "init")
+    log.raw("Making eventHandler")
     thread.create(function()
+        log.raw("Created eventHandler")
         while true do
             local event = {computer.getMachineEvent()}
             if event[1] == nil then

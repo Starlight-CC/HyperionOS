@@ -1,0 +1,57 @@
+local args=({...})[1]
+local fs=require("filesystem")
+--local sfs=fs.getSudo(args.masterKey)
+local auth=require("auth")
+local systemd={}
+local uuid=0
+local root={}
+local currentTask={chlidren=root, }
+
+-- Task status
+-- "R" | Runnable/Running
+-- "S" | Sleeping/Waiting
+-- "T" | Stopped/Paused
+-- "Z" | Exited
+-- "E" | Errored
+-- "X" | Marked for GC
+
+local function UUID()
+    uuid=uuid+1
+    return tostring(uuid)
+end
+
+function systemd.create(func, name, ...)
+    local id=UUID()
+    local fargs={...}
+    local task={}
+    local handle={}
+    task={
+        sleep=0,
+        state="N",
+        thread=coroutine.create(function()
+            local ret={pcall(func, table.unpack(fargs))}
+            local ok, tret = ret[1], {table.unpack(ret,2)}
+            if not ok then
+                task.state="E"
+                task.exit_state=tret[1]
+                task.exit_code=1
+            else
+                if #tret>0 then
+                    task.state="Z"
+                    task.exit_state=tret
+                    task.exit_code=0
+                else
+                    task.state="X"
+                end
+            end
+        end),
+        PID=id,
+        comm=string.sub(name, 1, 32),
+        parent=currentTask,
+        chlidren={},
+        sibling=currentTask.chlidren,
+        files={},
+        nvcsw=0,
+        nivcsw=0
+    }
+end

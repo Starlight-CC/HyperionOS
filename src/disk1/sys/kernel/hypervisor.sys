@@ -2,17 +2,20 @@ local args=({...})[1]
 local fs=require("filesystem")
 --local sfs=fs.getSudo(args.masterKey)
 local auth=require("auth")
-local systemd={}
-local uuid=0
+local system={}
+local uuid=-1
+local computer=component.getFirst("computer")
+local time=computer.time()
 local root={}
-local currentTask={chlidren=root, }
+local currentTask={chlidren=root}
 
 -- Task status
 -- "R" | Runnable/Running
 -- "S" | Sleeping/Waiting
--- "T" | Stopped/Paused
+-- "P" | Stopped/Paused
 -- "Z" | Exited
 -- "E" | Errored
+-- "T" | Terminate
 -- "X" | Marked for GC
 
 local function UUID()
@@ -20,7 +23,7 @@ local function UUID()
     return tostring(uuid)
 end
 
-function systemd.create(func, name, ...)
+function system.create(func, name, ...)
     local id=UUID()
     local fargs={...}
     local task={}
@@ -52,6 +55,39 @@ function systemd.create(func, name, ...)
         sibling=currentTask.chlidren,
         files={},
         nvcsw=0,
-        nivcsw=0
+        nivcsw=0,
+        handle=handle,
+        start_time=time
     }
+    currentTask.chlidren[name]=task
+    function handle.kill()
+        task.state="K"
+    end
+    function handle.pause()
+        if task.state=="R" then
+            task.state="T"
+            return true
+        else
+            return false
+        end
+    end
+    function handle.resume()
+        if task.state=="T" then
+            task.state="R"
+            return true
+        else
+            return false
+        end
+    end
+    function handle.getPID()
+        return task.PID
+    end
+    function handle.getParent()
+        return task.parent.PID
+    end
+    function handle.getState()
+        return task.state
+    end
+    return handle
 end
+

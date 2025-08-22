@@ -169,7 +169,7 @@ hypervisor(function()
     local thread=require("thread")
     log.log("Created kernel process")
     startup=false
-    hpv.createProcessFromFile("sys/systemd.sys", "systemd")
+    hpv.createProcessFromFile("sys/os/init.lua", "systemd")
     thread.create(function()
         while true do
             local event = {computer.getMachineEvent()}
